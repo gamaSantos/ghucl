@@ -29,6 +29,4 @@ impl BaseFileSelector {
             Message::FileSelected
         ).into()
     }
-
-    
 }

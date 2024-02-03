@@ -46,17 +46,33 @@ impl Sandbox for Root {
             Message::FileSelected(file_name) => self.current_base = Some(file_name),
             Message::FolderChanged => {
                 println!("folder changed {0}", self.folder_path);
-                self.files = match fs::read_dir(&self.folder_path) {
-                    Ok(entries) => entries
-                        .map(|e| match e {
-                            Ok(dir_entry) => dir_entry.path().to_str().unwrap().to_owned(),
-                            Err(_) => {
-                                String::from("try again later, there was some unexpected io error")
+                
+                let mut temp_files: Vec<String> = vec![];
+                match fs::read_dir(&self.folder_path) {
+                    Ok(entries) => {
+                        for rde in entries {
+                            match rde {
+                                Ok(de) => {
+                                    if let Ok(file_type) = de.file_type() {
+                                        if file_type.is_file() { 
+                                            if let Some(file_name) = de.file_name().to_str() {
+                                                temp_files.push(file_name.to_string())
+                                            }
+                                        }
+                                    }
+                                },
+                                Err(de_error) => {
+                                    println!("{de_error}")
+                                },
                             }
-                        })
-                        .collect(),
-                    Err(_) => Vec::<String>::new(),
-                };
+                        }
+                        self.files = temp_files;
+                    },
+                    Err(_) => {
+                        println!("could not read dir");
+                        self.files = vec![];
+                    }
+                }
             }
             Message::FolderInputValueChange(value) => self.folder_path = value,
         }
@@ -95,3 +111,26 @@ impl Sandbox for Root {
         .into()
     }
 }
+// let mut temp_files: Vec<String> = vec![];
+//                 match fs::read_dir(&self.folder_path) {
+//                     Ok(entries) => {
+//                         for rde in entries {
+//                             match rde {
+//                                 Ok(de) => {
+//                                     if let Ok(file_type) = de.file_type() {
+//                                         if file_type.is_file() { 
+//                                             if let Some(file_name) = de.file_name().to_str() {
+//                                                 temp_files.push(file_name.to_string())
+//                                             }
+//                                         }
+//                                     }
+//                                 },
+//                                 Err(_) => continue,
+//                             }
+//                         }
+//                         self.files = temp_files;
+//                     },
+//                     Err(_) => {
+//                         self.files = vec![];
+//                     }
+//                 }
