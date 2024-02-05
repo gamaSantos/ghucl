@@ -3,7 +3,8 @@ mod message;
 
 use std::fs;
 
-use iced::widget::{button, column, horizontal_space, pick_list, row, text, text_input};
+use iced::alignment::Vertical;
+use iced::widget::{button, column, horizontal_space, pick_list, row, scrollable, text, text_input};
 use iced::{Alignment, Element, Length, Sandbox, Settings};
 use message::Message;
 
@@ -86,10 +87,12 @@ impl Sandbox for Root {
                 .on_paste(Message::FolderInputValueChange)
                 .on_submit(Message::FolderChanged),
         ]
-        .padding(10);
+        .padding(10)
+        .align_items(Alignment::Center)
+        .spacing(10);
 
         let header = row![
-            text("choose your destiny"),
+            text("choose base file"),
             horizontal_space(Length::Fill),
             pick_list(
                 &self.files,
@@ -99,9 +102,18 @@ impl Sandbox for Root {
             .placeholder("choose a file")
         ]
         .padding(10);
+
+        let tree_view = scrollable(
+            column![
+                text("first"),
+                text("secound")
+            ]
+        );
+
         column![
             folder_component,
             header,
+            tree_view
             // button("Increment").on_press(Message::IncrementPressed),
             // text(self.value).size(50),
             // button("Decrement").on_press(Message::DecrementPressed)
@@ -111,26 +123,3 @@ impl Sandbox for Root {
         .into()
     }
 }
-// let mut temp_files: Vec<String> = vec![];
-//                 match fs::read_dir(&self.folder_path) {
-//                     Ok(entries) => {
-//                         for rde in entries {
-//                             match rde {
-//                                 Ok(de) => {
-//                                     if let Ok(file_type) = de.file_type() {
-//                                         if file_type.is_file() { 
-//                                             if let Some(file_name) = de.file_name().to_str() {
-//                                                 temp_files.push(file_name.to_string())
-//                                             }
-//                                         }
-//                                     }
-//                                 },
-//                                 Err(_) => continue,
-//                             }
-//                         }
-//                         self.files = temp_files;
-//                     },
-//                     Err(_) => {
-//                         self.files = vec![];
-//                     }
-//                 }
