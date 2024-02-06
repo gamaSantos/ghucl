@@ -1,10 +1,15 @@
 mod base_file_selector;
+mod file_tree;
 mod message;
 
 use std::fs;
 
+use file_tree::FileTree;
 use iced::alignment::Vertical;
-use iced::widget::{button, column, horizontal_space, pick_list, row, scrollable, text, text_input};
+use iced::futures::future::ok;
+use iced::widget::{
+    button, column, horizontal_space, pick_list, row, scrollable, text, text_input,
+};
 use iced::{Alignment, Element, Length, Sandbox, Settings};
 use message::Message;
 
@@ -17,8 +22,8 @@ struct Root {
     files: Vec<String>,
     current_base: Option<String>,
     folder_path: String,
+    file_tree: Option<FileTree>,
 }
-
 
 impl Sandbox for Root {
     type Message = Message;
@@ -29,6 +34,7 @@ impl Sandbox for Root {
             files: vec![],
             current_base: None,
             folder_path: String::from(""),
+            file_tree: None,
         }
     }
 
@@ -47,31 +53,19 @@ impl Sandbox for Root {
             Message::FileSelected(file_name) => self.current_base = Some(file_name),
             Message::FolderChanged => {
                 println!("folder changed {0}", self.folder_path);
-                
-                let mut temp_files: Vec<String> = vec![];
-                match fs::read_dir(&self.folder_path) {
-                    Ok(entries) => {
-                        for rde in entries {
-                            match rde {
-                                Ok(de) => {
-                                    if let Ok(file_type) = de.file_type() {
-                                        if file_type.is_file() { 
-                                            if let Some(file_name) = de.file_name().to_str() {
-                                                temp_files.push(file_name.to_string())
-                                            }
-                                        }
-                                    }
-                                },
-                                Err(de_error) => {
-                                    println!("{de_error}")
-                                },
-                            }
-                        }
-                        self.files = temp_files;
-                    },
+                let result = fs::read_dir(&self.folder_path)
+                    .and_then(FileTree::from_read_dir)
+                    .and_then(|tree| {
+                        self.files = tree.get_file_names();
+                        self.file_tree = Some(tree);
+                        Ok(())
+                    });
+                match result {
+                    Ok(_) => {}
                     Err(_) => {
-                        println!("could not read dir");
+                        println!("could not read dir"); //change alert
                         self.files = vec![];
+                        self.file_tree = None;
                     }
                 }
             }
@@ -80,6 +74,7 @@ impl Sandbox for Root {
     }
 
     fn view(&self) -> Element<Message> {
+
         let folder_component = row![
             text("folder path:"),
             text_input("folder path", &self.folder_path)
@@ -103,20 +98,14 @@ impl Sandbox for Root {
         ]
         .padding(10);
 
-        let tree_view = scrollable(
-            column![
-                text("first"),
-                text("secound")
-            ]
-        );
+        let tree_view = scrollable(column![text("first"), text("secound")]);
 
         column![
             folder_component,
             header,
-            tree_view
-            // button("Increment").on_press(Message::IncrementPressed),
-            // text(self.value).size(50),
-            // button("Decrement").on_press(Message::DecrementPressed)
+            tree_view // button("Increment").on_press(Message::IncrementPressed),
+                      // text(self.value).size(50),
+                      // button("Decrement").on_press(Message::DecrementPressed)
         ]
         .padding(20)
         .align_items(Alignment::Center)
