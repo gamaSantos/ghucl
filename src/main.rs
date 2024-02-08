@@ -74,7 +74,6 @@ impl Sandbox for Root {
     }
 
     fn view(&self) -> Element<Message> {
-
         let folder_component = row![
             text("folder path:"),
             text_input("folder path", &self.folder_path)
@@ -98,7 +97,10 @@ impl Sandbox for Root {
         ]
         .padding(10);
 
-        let tree_view = scrollable(column![text("first"), text("secound")]);
+        let tree_view = scrollable(match &self.file_tree {
+            Some(fs) => fs.get_elements(),
+            None => column![text("no item")].into(),
+        });
 
         column![
             folder_component,

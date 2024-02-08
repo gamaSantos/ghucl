@@ -1,7 +1,8 @@
-use std::{
-    fs::ReadDir,
-    io::Error,
-};
+use std::{fs::ReadDir, io::Error};
+
+use iced::{widget::{button, column}, Element};
+
+use crate::message::Message;
 
 #[derive(Default)]
 pub struct FileTree {
@@ -62,18 +63,38 @@ impl FileTree {
             .map(|i| i.get_name())
             .collect()
     }
-}
 
+    pub fn get_elements(&self) -> Element<Message> {
+        let elem: Vec<Element<Message>> = self.items.iter().map(|fi| fi.get_element()).collect();
+        column(elem).into()
+    }
+}
 
 impl FileTreeItem {
     fn get_name(&self) -> String {
         match self {
-            FileTreeItem::Directory { name, chield: _, depth: _, is_initilized: _ } => name.to_owned(),
+            FileTreeItem::Directory {
+                name,
+                chield: _,
+                depth: _,
+                is_initilized: _,
+            } => name.to_owned(),
             FileTreeItem::File { name, depth: _ } => name.to_owned(),
         }
     }
 
-    fn get_element(&self) {
-        
+    fn get_element(&self) -> Element<Message> {
+        match self {
+            FileTreeItem::Directory {
+                name,
+                chield,
+                depth,
+                is_initilized,
+            } => button(name.as_str()).on_press(Message::IncrementPressed),
+            FileTreeItem::File { name, depth } => {
+                button(name.as_str()).on_press(Message::DecrementPressed)
+            }
+        }
+        .into()
     }
 }
