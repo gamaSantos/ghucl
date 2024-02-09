@@ -1,8 +1,8 @@
 #[derive(Debug, Clone)]
 pub enum Message {
-    IncrementPressed,
-    DecrementPressed,
-    FileSelected(String),
+    BaseFileChanged(String),
     FolderInputValueChange(String),
     FolderChanged,
+    FileTreeItemToogled(String),
+    FileSelected(String)
 }

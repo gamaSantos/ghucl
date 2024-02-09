@@ -5,11 +5,8 @@ mod message;
 use std::fs;
 
 use file_tree::FileTree;
-use iced::alignment::Vertical;
-use iced::futures::future::ok;
-use iced::widget::{
-    button, column, horizontal_space, pick_list, row, scrollable, text, text_input,
-};
+use iced::alignment::Horizontal;
+use iced::widget::{button, column, horizontal_space, pick_list, row, scrollable, text, text_input};
 use iced::{Alignment, Element, Length, Sandbox, Settings};
 use message::Message;
 
@@ -18,11 +15,12 @@ pub fn main() -> iced::Result {
 }
 #[derive(Default)]
 struct Root {
-    value: i32,
     files: Vec<String>,
     current_base: Option<String>,
     folder_path: String,
+    file_content : String,
     file_tree: Option<FileTree>,
+    reponse: String
 }
 
 impl Sandbox for Root {
@@ -30,11 +28,12 @@ impl Sandbox for Root {
 
     fn new() -> Self {
         Self {
-            value: 0,
             files: vec![],
             current_base: None,
             folder_path: String::from(""),
             file_tree: None,
+            file_content: String::from("no file selected"),
+            reponse: String::from("empty for now")
         }
     }
 
@@ -44,13 +43,7 @@ impl Sandbox for Root {
 
     fn update(&mut self, message: Message) {
         match message {
-            Message::IncrementPressed => {
-                self.value += 1;
-            }
-            Message::DecrementPressed => {
-                self.value -= 1;
-            }
-            Message::FileSelected(file_name) => self.current_base = Some(file_name),
+            Message::BaseFileChanged(file_name) => self.current_base = Some(file_name),
             Message::FolderChanged => {
                 println!("folder changed {0}", self.folder_path);
                 let result = fs::read_dir(&self.folder_path)
@@ -70,6 +63,11 @@ impl Sandbox for Root {
                 }
             }
             Message::FolderInputValueChange(value) => self.folder_path = value,
+            Message::FileTreeItemToogled(_) => todo!(),
+            Message::FileSelected(file_path) => {
+                let content = std::fs::read_to_string(file_path).unwrap_or("could not read file".to_string());
+                self.file_content = content;
+            },
         }
     }
 
@@ -87,30 +85,39 @@ impl Sandbox for Root {
 
         let header = row![
             text("choose base file"),
-            horizontal_space(Length::Fill),
             pick_list(
                 &self.files,
                 self.current_base.clone(),
-                Message::FileSelected
+                Message::BaseFileChanged
             )
-            .placeholder("choose a file")
+            .placeholder("choose a file"),
+            horizontal_space(Length::Fill),
+            button("send")
         ]
-        .padding(10);
+        .padding(10)
+        .align_items(Alignment::Center)
+        .spacing(20);
 
         let tree_view = scrollable(match &self.file_tree {
             Some(fs) => fs.get_elements(),
             None => column![text("no item")].into(),
         });
 
-        column![
-            folder_component,
-            header,
-            tree_view // button("Increment").on_press(Message::IncrementPressed),
-                      // text(self.value).size(50),
-                      // button("Decrement").on_press(Message::DecrementPressed)
+        let content_row = row![
+            tree_view.width(Length::FillPortion(1)),
+            scrollable(text(&self.file_content))
+                .width(Length::FillPortion(1))
+                .height(Length::Fill)
+                .direction(scrollable::Direction::Both { vertical: scrollable::Properties::default(), horizontal: scrollable::Properties::default() }),
+            scrollable(text(&self.reponse))
+                .width(Length::FillPortion(1))
+                .height(Length::Fill)
+                .direction(scrollable::Direction::Both { vertical: scrollable::Properties::default(), horizontal: scrollable::Properties::default() })
         ]
-        .padding(20)
-        .align_items(Alignment::Center)
-        .into()
+        .spacing(20);
+        column![folder_component, header, content_row,]
+            .padding(20)
+            .align_items(Alignment::Center)
+            .into()
     }
 }

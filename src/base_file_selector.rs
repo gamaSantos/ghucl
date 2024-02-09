@@ -26,7 +26,7 @@ impl BaseFileSelector {
         pick_list(
             &self.files,
             self.selected.clone(),
-            Message::FileSelected
+            Message::BaseFileChanged
         ).into()
     }
 }

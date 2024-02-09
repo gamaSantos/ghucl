@@ -1,6 +1,10 @@
-use std::{fs::ReadDir, io::Error};
+use std::{fmt::format, fs::ReadDir, io::Error};
 
-use iced::{widget::{button, column}, Element};
+use iced::{
+    application::StyleSheet,
+    widget::{button, column, text},
+    Element, Theme,
+};
 
 use crate::message::Message;
 
@@ -12,12 +16,15 @@ pub struct FileTree {
 enum FileTreeItem {
     Directory {
         name: String,
+        path: String,
         chield: Vec<FileTreeItem>,
         depth: i32,
         is_initilized: bool,
+        is_open: bool,
     },
     File {
         name: String,
+        path: String,
         depth: i32,
     },
 }
@@ -29,12 +36,14 @@ impl FileTree {
         for rde in read_dir {
             match rde {
                 Ok(de) => {
-                    let file_name = de.file_name().to_str().unwrap().to_string();
+                    let file_name = de.file_name().to_str().unwrap_or("whoops").to_string();
+                    let path = de.path().to_str().unwrap_or("").to_string();
                     if let Ok(file_type) = de.file_type() {
                         if file_type.is_file() {
                             items.push(FileTreeItem::File {
                                 name: file_name.to_string(),
                                 depth: 0,
+                                path: path.clone(),
                             })
                         }
                         if file_type.is_dir() {
@@ -43,6 +52,8 @@ impl FileTree {
                                 chield: vec![],
                                 depth: 0,
                                 is_initilized: false,
+                                is_open: false,
+                                path: path.clone(),
                             })
                         }
                     }
@@ -59,7 +70,7 @@ impl FileTree {
     pub fn get_file_names(&self) -> Vec<String> {
         self.items
             .iter()
-            .filter(|i| matches!(i, FileTreeItem::File { name, depth }))
+            .filter(|i| matches!(i, FileTreeItem::File { name, depth, path }))
             .map(|i| i.get_name())
             .collect()
     }
@@ -78,8 +89,14 @@ impl FileTreeItem {
                 chield: _,
                 depth: _,
                 is_initilized: _,
+                is_open: _,
+                path,
             } => name.to_owned(),
-            FileTreeItem::File { name, depth: _ } => name.to_owned(),
+            FileTreeItem::File {
+                name,
+                depth: _,
+                path: _,
+            } => name.to_owned(),
         }
     }
 
@@ -87,14 +104,31 @@ impl FileTreeItem {
         match self {
             FileTreeItem::Directory {
                 name,
-                chield,
-                depth,
-                is_initilized,
-            } => button(name.as_str()).on_press(Message::IncrementPressed),
-            FileTreeItem::File { name, depth } => {
-                button(name.as_str()).on_press(Message::DecrementPressed)
+                chield: _,
+                depth: _,
+                is_initilized: _,
+                is_open,
+                path,
+            } => {
+                let prefix = if is_open.to_owned() { "◿" } else { ">" };
+
+                button(text(format!("{0} {1}", prefix, name)))
+                    .on_press(Message::FileTreeItemToogled(path.clone()))
+                    .style(iced::theme::Button::Text)
             }
+            FileTreeItem::File {
+                name,
+                depth: _,
+                path,
+            } => button(name.as_str())
+                .on_press(Message::FileSelected(path.clone()))
+                .style(iced::theme::Button::Text),
         }
         .into()
     }
+}
+
+fn get_button_theme() -> iced::theme::Button {
+    let default = iced::theme::Button::default();
+    default
 }
