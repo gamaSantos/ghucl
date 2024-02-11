@@ -1,4 +1,4 @@
-use std::{fmt::format, fs::ReadDir, io::Error};
+use std::{fmt::format, fs::ReadDir, io::Error, vec};
 
 use iced::{
     application::StyleSheet,
@@ -31,40 +31,10 @@ enum FileTreeItem {
 
 impl FileTree {
     pub fn from_read_dir(read_dir: ReadDir) -> Result<FileTree, Error> {
-        let mut items: Vec<FileTreeItem> = vec![];
-
-        for rde in read_dir {
-            match rde {
-                Ok(de) => {
-                    let file_name = de.file_name().to_str().unwrap_or("whoops").to_string();
-                    let path = de.path().to_str().unwrap_or("").to_string();
-                    if let Ok(file_type) = de.file_type() {
-                        if file_type.is_file() {
-                            items.push(FileTreeItem::File {
-                                name: file_name.to_string(),
-                                depth: 0,
-                                path: path.clone(),
-                            })
-                        }
-                        if file_type.is_dir() {
-                            items.push(FileTreeItem::Directory {
-                                name: file_name,
-                                chield: vec![],
-                                depth: 0,
-                                is_initilized: false,
-                                is_open: false,
-                                path: path.clone(),
-                            })
-                        }
-                    }
-                }
-                Err(de_error) => {
-                    return Err(de_error);
-                }
-            }
+        match get_items(read_dir) {
+            Ok(items) => Ok(FileTree { items }),
+            Err(e) => Err(e),
         }
-
-        return Ok(FileTree { items });
     }
 
     pub fn get_file_names(&self) -> Vec<String> {
@@ -128,7 +98,42 @@ impl FileTreeItem {
     }
 }
 
-fn get_button_theme() -> iced::theme::Button {
-    let default = iced::theme::Button::default();
-    default
+fn get_items(read_dir: ReadDir) -> Result<Vec<FileTreeItem>, Error> {
+    let mut dir_items: Vec<FileTreeItem> = vec![];
+    let mut file_items: Vec<FileTreeItem> = vec![];
+
+    for rde in read_dir {
+        match rde {
+            Ok(de) => {
+                let file_name = de.file_name().to_str().unwrap_or("whoops").to_string();
+                let path = de.path().to_str().unwrap_or("").to_string();
+                if let Ok(file_type) = de.file_type() {
+                    if file_type.is_file() {
+                        dir_items.push(FileTreeItem::File {
+                            name: file_name.to_string(),
+                            depth: 0,
+                            path: path.clone(),
+                        })
+                    }
+                    if file_type.is_dir() {
+                        file_items.push(FileTreeItem::Directory {
+                            name: file_name,
+                            chield: vec![],
+                            depth: 0,
+                            is_initilized: false,
+                            is_open: false,
+                            path: path.clone(),
+                        })
+                    }
+                }
+            }
+            Err(de_error) => {
+                return Err(de_error);
+            }
+        }
+    }
+    dir_items.sort_by(|a, b| a.get_name().cmp(&b.get_name()));
+    file_items.sort_by(|a, b| a.get_name().cmp(&b.get_name()));
+    file_items.append(&mut dir_items);
+    Ok(file_items)
 }
