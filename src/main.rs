@@ -2,11 +2,10 @@ mod base_file_selector;
 mod file_tree;
 mod message;
 
-use std::fs;
-
 use file_tree::FileTree;
-use iced::alignment::Horizontal;
-use iced::widget::{button, column, horizontal_space, pick_list, row, scrollable, text, text_input};
+use iced::widget::{
+    button, column, horizontal_space, pick_list, row, scrollable, text, text_input,
+};
 use iced::{Alignment, Element, Length, Sandbox, Settings};
 use message::Message;
 
@@ -18,9 +17,9 @@ struct Root {
     files: Vec<String>,
     current_base: Option<String>,
     folder_path: String,
-    file_content : String,
+    file_content: String,
     file_tree: Option<FileTree>,
-    reponse: String
+    reponse: String,
 }
 
 impl Sandbox for Root {
@@ -33,7 +32,7 @@ impl Sandbox for Root {
             folder_path: String::from(""),
             file_tree: None,
             file_content: String::from("no file selected"),
-            reponse: String::from("empty for now")
+            reponse: String::from("empty for now"),
         }
     }
 
@@ -46,8 +45,7 @@ impl Sandbox for Root {
             Message::BaseFileChanged(file_name) => self.current_base = Some(file_name),
             Message::FolderChanged => {
                 println!("folder changed {0}", self.folder_path);
-                let result = fs::read_dir(&self.folder_path)
-                    .and_then(FileTree::from_read_dir)
+                let result = FileTree::from_path(&self.folder_path)
                     .and_then(|tree| {
                         self.files = tree.get_file_names();
                         self.file_tree = Some(tree);
@@ -63,11 +61,16 @@ impl Sandbox for Root {
                 }
             }
             Message::FolderInputValueChange(value) => self.folder_path = value,
-            Message::FileTreeItemToogled(_) => todo!(),
+            Message::FileTreeItemToogled(path) => {
+                if let Some(tree) = self.file_tree.as_mut(){
+                    tree.navigate(&path);
+                };
+            }
             Message::FileSelected(file_path) => {
-                let content = std::fs::read_to_string(file_path).unwrap_or("could not read file".to_string());
+                let content =
+                    std::fs::read_to_string(file_path).unwrap_or("could not read file".to_string());
                 self.file_content = content;
-            },
+            }
         }
     }
 
@@ -108,11 +111,17 @@ impl Sandbox for Root {
             scrollable(text(&self.file_content))
                 .width(Length::FillPortion(1))
                 .height(Length::Fill)
-                .direction(scrollable::Direction::Both { vertical: scrollable::Properties::default(), horizontal: scrollable::Properties::default() }),
+                .direction(scrollable::Direction::Both {
+                    vertical: scrollable::Properties::default(),
+                    horizontal: scrollable::Properties::default()
+                }),
             scrollable(text(&self.reponse))
                 .width(Length::FillPortion(1))
                 .height(Length::Fill)
-                .direction(scrollable::Direction::Both { vertical: scrollable::Properties::default(), horizontal: scrollable::Properties::default() })
+                .direction(scrollable::Direction::Both {
+                    vertical: scrollable::Properties::default(),
+                    horizontal: scrollable::Properties::default()
+                })
         ]
         .spacing(20);
         column![folder_component, header, content_row,]
