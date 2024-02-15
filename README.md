@@ -8,6 +8,7 @@ TODO
 [] Send the http request;
 [] Create a windows release to test cross compilation;
 [] Remove duplicate code between the two projects;
+[] Chante license to MIT
 
 TODO after iced 0.12
 
