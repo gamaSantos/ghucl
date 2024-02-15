@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 iced = "^0.10.0"
+serde = { version = "1.0.195", features = ["derive"] }
+surf = "2.3.2"
+toml = "0.8.8"
