@@ -4,5 +4,6 @@ pub enum Message {
     FolderInputValueChange(String),
     FolderChanged,
     FileTreeItemToogled(String),
-    FileSelected(String)
+    FileSelected(String),
+    Send,
 }

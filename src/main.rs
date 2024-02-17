@@ -1,11 +1,14 @@
 mod base_file_selector;
 mod file_tree;
+mod http_client;
 mod message;
 mod request_error;
 mod request_message;
+mod response_message;
 
 use std::fs;
 
+use async_std::task;
 use file_tree::FileTree;
 use iced::widget::{
     button, column, horizontal_space, pick_list, row, scrollable, text, text_input,
@@ -13,10 +16,12 @@ use iced::widget::{
 use iced::{Alignment, Element, Length, Sandbox, Settings};
 use message::Message;
 use request_error::RequestError;
+use request_message::RequestMessageBuilder;
 
 pub fn main() -> iced::Result {
     Root::run(Settings::default())
 }
+
 #[derive(Default)]
 struct Root {
     files: Vec<String>,
@@ -26,8 +31,7 @@ struct Root {
     file_tree: Option<FileTree>,
     reponse: String,
     base_builder: Option<request_message::RequestMessageBuilder>,
-    file_builder: Option<request_message::RequestMessageBuilder>,
-    message: Option<request_message::RequestMessage>,
+    req_builder: Option<request_message::RequestMessageBuilder>,
 }
 
 impl Sandbox for Root {
@@ -42,8 +46,7 @@ impl Sandbox for Root {
             file_content: String::from("no file selected"),
             reponse: String::from("empty for now"),
             base_builder: None,
-            file_builder: None,
-            message: None,
+            req_builder: None,
         }
     }
 
@@ -55,9 +58,8 @@ impl Sandbox for Root {
         match message {
             Message::BaseFileChanged(file_name) => {
                 self.current_base = Some(file_name.clone());
-                let rmb_read = Root::read_file(&file_name)
-                    .and_then(|toml_text| request_message::RequestMessage::from_text(&toml_text));
-                self.base_builder = match rmb_read {
+
+                self.base_builder = match Root::get_builder_from_file(&file_name) {
                     Ok(rmb) => Some(rmb),
                     Err(_) => {
                         self.notify("could not read base file");
@@ -90,19 +92,36 @@ impl Sandbox for Root {
             Message::FileSelected(file_path) => {
                 match fs::read_to_string(&file_path) {
                     Ok(content) => {
-                        self.file_builder =
+                        self.req_builder =
                             match request_message::RequestMessage::from_text(&content) {
-                                Ok(rmb) => Some(rmb),
+                                Ok(rmb) => {
+                                    if let Some(base_buiilder) = &self.base_builder {
+                                        rmb.merge_with(base_buiilder);
+                                    }
+                                    Some(rmb)
+                                }
                                 Err(_) => {
                                     self.notify("could not parse file");
                                     None
                                 }
                             };
-                        self.file_content = content
+                        self.file_content = content;
                     }
                     Err(_) => self.notify("Could not read file"),
                 };
             }
+            Message::Send => match &self.req_builder {
+                Some(req_builder) => match req_builder.to_message() {
+                    Ok(message) => {
+                        match task::block_on(http_client::send(message)) {
+                            Ok(respone) => self.reponse = format!("{0}", respone),
+                            Err(_) => self.notify("error while sending request"),
+                        };
+                    }
+                    Err(_) => self.notify("error while sending request"),
+                },
+                None => self.notify("Could not send the message"),
+            },
         }
     }
 
@@ -170,10 +189,11 @@ impl Root {
     }
 
     // replace with actual implementation
-    fn read_file(file_path: &str) -> Result<String, RequestError> {
+    fn get_builder_from_file(file_path: &str) -> Result<RequestMessageBuilder, RequestError> {
         match fs::read_to_string(file_path) {
             Ok(v) => Ok(v),
             Err(_) => Err(RequestError::CouldNotReadFile),
         }
+        .and_then(|toml_text| request_message::RequestMessage::from_text(&toml_text))
     }
 }
