@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fmt::Display,
+};
 
 use serde::Deserialize;
 
@@ -55,11 +58,27 @@ impl RequestMessageBuilder {
             }
             return target_headers;
         }
-
-        let method = new_message.method.as_ref().or(self.method.as_ref()).and_then(|v| Some(v.clone()));
-        let host = new_message.host.as_ref().or(self.host.as_ref()).and_then(|v| Some(v.clone()));
-        let path = new_message.path.as_ref().or(self.path.as_ref()).and_then(|v| Some(v.clone()));
-        let body = new_message.body.as_ref().or(self.body.as_ref()).and_then(|v| Some(v.clone()));
+        
+        let method = new_message
+            .method
+            .as_ref()
+            .or(self.method.as_ref())
+            .and_then(|v| Some(v.clone()));
+        let host = new_message
+            .host
+            .as_ref()
+            .or(self.host.as_ref())
+            .and_then(|v| Some(v.clone()));
+        let path = new_message
+            .path
+            .as_ref()
+            .or(self.path.as_ref())
+            .and_then(|v| Some(v.clone()));
+        let body = new_message
+            .body
+            .as_ref()
+            .or(self.body.as_ref())
+            .and_then(|v| Some(v.clone()));
 
         let copied_values = increment_header(self.headers.clone(), HashMap::new());
         let incremented = increment_header(new_message.headers.clone(), copied_values);
@@ -104,7 +123,7 @@ impl RequestMessageBuilder {
             Some(s) => s.as_str(),
             None => "",
         };
-        
+
         return Ok(RequestMessage {
             method: parse_method(method_candidate),
             url: String::from(host) + path,
@@ -124,5 +143,30 @@ impl RequestMessageBuilder {
                 _ => HttpVerb::HEAD,
             }
         }
+    }
+}
+
+impl Display for RequestMessageBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let empty = "[none]".to_string();
+        write!(f, "{0}", self.method.as_ref().unwrap_or(&empty))
+            .and_then(|_| write!(f, " {0}", self.host.as_ref().unwrap_or(&empty)))
+            .and_then(|_| write!(f, "{0}\n", self.path.as_ref().unwrap_or(&empty)))
+            .and_then(|_| writeln!(f, "\n body \n{0}", self.body.as_ref().unwrap_or(&empty)))
+            .and_then(|_| {
+                if let Some(headers) = &self.headers {
+                    let out_write_result = writeln!(f, "\nHeaders");
+                    if out_write_result.is_err() {
+                        return out_write_result;
+                    }
+                    for item in headers.iter() {
+                        let inner_result = writeln!(f, "{0}:{1}", item.0, item.1);
+                        if inner_result.is_err() {
+                            return inner_result;
+                        }
+                    }
+                }
+                Ok(())
+            })
     }
 }

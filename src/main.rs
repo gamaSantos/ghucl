@@ -1,4 +1,3 @@
-mod base_file_selector;
 mod file_tree;
 mod http_client;
 mod message;
@@ -7,6 +6,7 @@ mod request_message;
 mod response_message;
 
 use std::fs;
+use std::path::Path;
 
 use async_std::task;
 use file_tree::FileTree;
@@ -32,6 +32,7 @@ struct Root {
     reponse: String,
     base_builder: Option<request_message::RequestMessageBuilder>,
     req_builder: Option<request_message::RequestMessageBuilder>,
+    req_content: String,
 }
 
 impl Sandbox for Root {
@@ -47,6 +48,7 @@ impl Sandbox for Root {
             reponse: String::from("empty for now"),
             base_builder: None,
             req_builder: None,
+            req_content: String::from("[none]"),
         }
     }
 
@@ -58,11 +60,13 @@ impl Sandbox for Root {
         match message {
             Message::BaseFileChanged(file_name) => {
                 self.current_base = Some(file_name.clone());
+                let base_path = Path::new(&self.folder_path).join(&file_name);
+                let full_path = base_path.to_str().unwrap_or("");
 
-                self.base_builder = match Root::get_builder_from_file(&file_name) {
+                self.base_builder = match Root::get_builder_from_file(full_path) {
                     Ok(rmb) => Some(rmb),
                     Err(_) => {
-                        self.notify("could not read base file");
+                        self.notify(format!("could not read base file in {0}", full_path).as_str());
                         None
                     }
                 };
@@ -96,9 +100,14 @@ impl Sandbox for Root {
                             match request_message::RequestMessage::from_text(&content) {
                                 Ok(rmb) => {
                                     if let Some(base_buiilder) = &self.base_builder {
-                                        rmb.merge_with(base_buiilder);
+                                        let req = base_buiilder.merge_with(&rmb);
+                                        self.req_content = format!("{req}");    
+                                        Some(req)
                                     }
-                                    Some(rmb)
+                                    else {
+                                        self.req_content = format!("{rmb}");
+                                        Some(rmb)
+                                    }
                                 }
                                 Err(_) => {
                                     self.notify("could not parse file");
@@ -146,7 +155,7 @@ impl Sandbox for Root {
             )
             .placeholder("choose a file"),
             horizontal_space(Length::Fill),
-            button("send")
+            button("send").on_press(Message::Send)
         ]
         .padding(10)
         .align_items(Alignment::Center)
@@ -158,13 +167,14 @@ impl Sandbox for Root {
         })
         .width(Length::FillPortion(1));
 
-        let request_view = scrollable(column![text(&self.file_content), text(&self.file_content),])
-            .width(Length::FillPortion(1))
-            .height(Length::Fill)
-            .direction(scrollable::Direction::Both {
-                vertical: scrollable::Properties::default(),
-                horizontal: scrollable::Properties::default(),
-            });
+        let request_view =
+            scrollable(column![text(&self.file_content), text(&self.req_content),].spacing(10))
+                .width(Length::FillPortion(1))
+                .height(Length::Fill)
+                .direction(scrollable::Direction::Both {
+                    vertical: scrollable::Properties::default(),
+                    horizontal: scrollable::Properties::default(),
+                });
 
         let result_view = scrollable(text(&self.reponse))
             .width(Length::FillPortion(1))
