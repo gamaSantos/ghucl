@@ -101,10 +101,9 @@ impl Sandbox for Root {
                                 Ok(rmb) => {
                                     if let Some(base_buiilder) = &self.base_builder {
                                         let req = base_buiilder.merge_with(&rmb);
-                                        self.req_content = format!("{req}");    
+                                        self.req_content = format!("{req}");
                                         Some(req)
-                                    }
-                                    else {
+                                    } else {
                                         self.req_content = format!("{rmb}");
                                         Some(rmb)
                                     }
@@ -149,12 +148,12 @@ impl Sandbox for Root {
         let header = row![
             text("choose base file"),
             pick_list(
-                &self.files,
+                self.files.clone(),
                 self.current_base.clone(),
                 Message::BaseFileChanged
             )
             .placeholder("choose a file"),
-            horizontal_space(Length::Fill),
+            horizontal_space(),
             button("send").on_press(Message::Send)
         ]
         .padding(10)
